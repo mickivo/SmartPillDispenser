@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartPill Portal</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- Top App Bar -->
+  <header class="top-app-bar">
+    <div class="user-profile">
+      <div class="avatar">💊</div>
+      <div>
+        <h1 id="patientName">Loading...</h1>
+        <p class="device-id-text">ID: <span id="deviceIdDisplay">SPD-2026-001</span></p>
+      </div>
+    </div>
+
+    <nav class="desktop-nav">
+      <a href="index.html" class="active">Dashboard</a>
+      <a href="schedule.html">Schedule</a>
+      <a href="history.html">History</a>
+      <a href="settings.html">Settings</a>
+    </nav>
+
+    <span id="deviceStatus" class="status-pill status-offline">OFFLINE</span>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="app-container">
+
+    <!-- Hero Card -->
+    <section class="hero-card">
+      <div id="liveDateDisplay" style="font-size: 0.95rem; font-weight: 700; opacity: 0.95; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">--,-- ------ ----</div>
+      
+      <div class="hero-badge">UPCOMING DOSE</div>
+      <h2 id="nextMedName">No Dose Scheduled</h2>
+      <p id="nextMedDetails" class="hero-subtext">Compartment: - | Time: -</p>
+      <div class="timer-display" id="countdownTimer">0D: 00H: 00M: 00S</div>
+    </section>
+
+    <!-- Compartments -->
+    <section class="section-group">
+      <div class="section-header">
+        <h3>Dispenser Compartments</h3>
+      </div>
+      <div class="compartment-grid">
+        
+        <div id="visualBoxA" class="comp-card is-locked">
+          <div class="comp-header">
+            <span class="comp-title">Box A</span>
+            <span id="stockA" class="pill-count">0 Pills</span>
+          </div>
+          <div id="visualIconA" class="comp-icon">🔒</div>
+          <div class="comp-status-bar">
+            <span id="visualLidA" class="lid-dot"></span>
+            <span class="status-label">Lid Closed</span>
+          </div>
+        </div>
+
+        <div id="visualBoxB" class="comp-card is-locked">
+          <div class="comp-header">
+            <span class="comp-title">Box B</span>
+            <span id="stockB" class="pill-count">0 Pills</span>
+          </div>
+          <div id="visualIconB" class="comp-icon">🔒</div>
+          <div class="comp-status-bar">
+            <span id="visualLidB" class="lid-dot"></span>
+            <span class="status-label">Lid Closed</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Lower Grid -->
+    <div class="desktop-grid-2">
+      <!-- Emergency Unlock -->
+      <section class="section-group">
+        <div class="card emergency-card">
+          <h3>Emergency Unlock</h3>
+          <p class="card-desc">Override lock mechanisms in case of manual requirement.</p>
+          
+          <div class="input-action-group">
+            <select id="emergencyBoxSelect" class="app-select">
+              <option value="both">All Compartments (A & B)</option>
+              <option value="boxA">Compartment A</option>
+              <option value="boxB">Compartment B</option>
+            </select>
+            <button class="app-btn btn-danger" onclick="triggerForceUnlock()">Unlock Now</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Compliance -->
+      <section class="section-group">
+        <div class="card chart-card">
+          
+          <!-- Tajuk & Peratusan -->
+          <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div>
+              <h3 style="margin-bottom: 0;">Weekly History</h3>
+              <p style="font-size: 0.85rem; color: var(--text-sub); margin-top: 4px; font-weight: 600;">
+                Overall Compliance: <span id="homeCompliancePercent" style="color: #10b981; font-weight: 800;">0%</span>
+              </p>
+            </div>
+          </div>
+          
+          <!-- Legend -->
+          <div class="chart-legend-custom" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 15px; font-size: 0.75rem; color: #475569;">
+            <span class="legend-item" style="display: flex; align-items: center; gap: 5px;">
+              <span class="dot" style="background-color: #10b981; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span> Taken
+            </span>
+            <span class="legend-item" style="display: flex; align-items: center; gap: 5px;">
+              <span class="dot" style="background-color: #ef4444; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span> Missed
+            </span>
+            <span class="legend-item" style="display: flex; align-items: center; gap: 5px;">
+              <span class="dot" style="background-color: #eab308; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span> Emg (Taken)
+            </span>
+            <span class="legend-item" style="display: flex; align-items: center; gap: 5px;">
+              <span class="dot" style="background-color: #f97316; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span> Emg (Miss)
+            </span>
+          </div>
+
+          <!-- Graf -->
+          <div class="chart-wrapper">
+            <canvas id="complianceChart"></canvas>
+          </div>
+          
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- Bottom Mobile Navigation Bar -->
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item active">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Home</span>
+    </a>
+    <a href="schedule.html" class="nav-item">
+      <span class="nav-icon">⏰</span>
+      <span class="nav-label">Schedule</span>
+    </a>
+    <a href="history.html" class="nav-item">
+      <span class="nav-icon">📜</span>
+      <span class="nav-label">History</span>
+    </a>
+    <a href="settings.html" class="nav-item">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">Settings</span>
+    </a>
+  </nav>
+
+  <script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetDevice = urlParams.get('id') || DEVICE_ID;
+  document.getElementById('deviceIdDisplay').innerText = targetDevice;
+
+  const deviceRef = database.ref('devices/' + targetDevice);
+  let countdownInterval;
+
+  // FUNGSI TUKAR FORMAT MASA (24-JAM KE 12-JAM WITH AM/PM)
+  function convertTo12Hour(time24) {
+    if (!time24 || !time24.includes(':')) return time24;
+
+    let [hours, minutes] = time24.split(':').map(Number);
+    let ampm = hours >= 12 ? 'PM' : 'AM';
+
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+
+    let formattedHours = String(hours).padStart(2, '0');
+    let formattedMinutes = String(minutes).padStart(2, '0');
+
+    return `${formattedHours}:${formattedMinutes} ${ampm}`;
+  }
+
+  // DATE & DAY LOGIC
+  function updateLiveDate() {
+    const now = new Date();
+    const daysEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const monthsEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    const dayName = daysEn[now.getDay()];
+    const dateNum = now.getDate();
+    const monthName = monthsEn[now.getMonth()];
+    const yearNum = now.getFullYear();
+
+    document.getElementById('liveDateDisplay').innerText = `${dayName}, ${dateNum} ${monthName} ${yearNum}`;
+  }
+  setInterval(updateLiveDate, 1000);
+  updateLiveDate();
+
+  // Initialize Chart
+  const ctx = document.getElementById('complianceChart').getContext('2d');
+  const complianceChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+      datasets: [
+        {
+          label: 'Taken',
+          data: [0, 0, 0, 0, 0, 0, 0],
+          backgroundColor: '#10b981',
+          borderRadius: 8
+        },
+        {
+          label: 'Missed',
+          data: [0, 0, 0, 0, 0, 0, 0],
+          backgroundColor: '#ef4444',
+          borderRadius: 8
+        },
+        {
+          label: 'Emg (Taken)',
+          data: [0, 0, 0, 0, 0, 0, 0], 
+          backgroundColor: '#eab308',
+          borderRadius: 8
+        },
+        {
+          label: 'Emg (Miss)',
+          data: [0, 0, 0, 0, 0, 0, 0], 
+          backgroundColor: '#f97316',
+          borderRadius: 8
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, stacked: false },
+        y: { grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 }, stacked: false }
+      }
+    }
+  });
+
+  // SYNC CHART AND COMPLIANCE PERCENTAGE FROM HISTORY
+  function updateChartAndCompliance(historyData) {
+    let totalTaken = 0;
+    let totalMissed = 0;
+
+    let takenData = [0, 0, 0, 0, 0, 0, 0];
+    let missedData = [0, 0, 0, 0, 0, 0, 0];
+    let emgTakenData = [0, 0, 0, 0, 0, 0, 0];
+    let emgMissedData = [0, 0, 0, 0, 0, 0, 0];
+
+    let now = new Date();
+    let startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    let sevenDaysAgo = startOfDay - (6 * 24 * 60 * 60 * 1000); 
+
+    if (historyData) {
+      Object.keys(historyData).forEach(key => {
+        let log = historyData[key];
+        
+        // Skip REFILL logs
+        if (log.status === "REFILL" || (log.reason && log.reason.toLowerCase().includes("refill"))) return;
+
+        // Calculate Overall Compliance
+        if (log.status === "TAKEN") {
+          totalTaken++;
+        } else if (log.status === "MISSED_DOSE" || log.status === "MISSED") {
+          totalMissed++;
+        }
+
+        // Calculate 7-Days Chart Data
+        if (log.timestamp) {
+          let ts = log.timestamp;
+          if (ts.toString().length === 10) ts = ts * 1000; 
+          
+          if (ts >= sevenDaysAgo) {
+            let d = new Date(ts);
+            let dayIndex = d.getDay(); 
+            let chartIndex = dayIndex === 0 ? 6 : dayIndex - 1;
+
+            // Semak jika ini adalah kes Emergency
+            let isEmergency = (log.status === "EMERGENCY" || (log.reason && log.reason.toLowerCase().includes("emergency")));
+
+            if (isEmergency) {
+              // Jika Emergency, asingkan Taken dan Missed
+              if (log.status === "TAKEN") {
+                emgTakenData[chartIndex]++;
+              } else {
+                emgMissedData[chartIndex]++;
+              }
+            } else {
+              // Jika Normal (bukan Emergency)
+              if (log.status === "TAKEN") {
+                takenData[chartIndex]++;
+              } else if (log.status === "MISSED_DOSE" || log.status === "MISSED") {
+                missedData[chartIndex]++;
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Update Percentage Text
+    const totalAllDoses = totalTaken + totalMissed;
+    let percentage = 0;
+    if (totalAllDoses > 0) {
+      percentage = Math.round((totalTaken / totalAllDoses) * 100);
+    }
+    
+    let percentText = document.getElementById('homeCompliancePercent');
+    percentText.innerText = percentage + "%";
+    
+    if (percentage >= 80) percentText.style.color = "#10b981"; 
+    else if (percentage >= 50) percentText.style.color = "#eab308"; 
+    else percentText.style.color = "#ef4444"; 
+
+    // Update Chart
+    complianceChart.data.datasets[0].data = takenData;
+    complianceChart.data.datasets[1].data = missedData;
+    complianceChart.data.datasets[2].data = emgTakenData;
+    complianceChart.data.datasets[3].data = emgMissedData;
+    complianceChart.update();
+  }
+
+  function startCountdown(targetDateTime) {
+    clearInterval(countdownInterval);
+
+    countdownInterval = setInterval(() => {
+      let now = new Date();
+      let distance = targetDateTime.getTime() - now.getTime();
+
+      // Jika masa tamat
+      if (distance <= 0) {
+        clearInterval(countdownInterval);
+        document.getElementById('countdownTimer').innerText = "00D: 00H: 00M: 00S";
+        return;
+      }
+
+      // Pengiraan Hari, Jam, Minit, dan Saat
+      let days = Math.floor(distance / (1000 * 60 * 60 * 24));
+      let hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      let minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      let seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+      // Pemformatan 00D: 00H: 00M: 00S
+      let formattedTime = 
+        String(days).padStart(2, '0') + "D: " + 
+        String(hours).padStart(2, '0') + "H: " + 
+        String(minutes).padStart(2, '0') + "M: " + 
+        String(seconds).padStart(2, '0') + "S";
+
+      document.getElementById('countdownTimer').innerText = formattedTime;
+    }, 1000);
+  }
+
+  function updateUpcomingDose(schedules, inventory) {
+    // Pastikan singkatan hari sepadan dengan tetapan sistem anda (Sun, Mon, Tue, Wed, Thu, Fri, Sat)
+    const dayKeys = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const now = new Date();
+
+    let nearestSchedule = null;
+    let minDistance = Infinity;
+    let targetDateTime = null;
+
+    for (let key in schedules) {
+      let sched = schedules[key];
+      
+      // Abaikan jika jadual tidak aktif
+      if (sched.active === false || String(sched.active) === "false") {
+        continue;
+      }
+
+      let [schedH, schedM] = sched.time.split(':').map(Number);
+      
+      // Ambil hari yang dibenarkan, jika tiada tetapkan semua hari
+      let allowedDays = sched.days || 'Sun,Mon,Tue,Wed,Thu,Fri,Sat';
+      if (typeof allowedDays === 'string') {
+        allowedDays = allowedDays.split(',').map(d => d.trim());
+      }
+
+      // Semak sehingga 14 hari ke hadapan (merangkumi minggu ini dan minggu depan)
+      for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
+        let testDate = new Date();
+        testDate.setDate(now.getDate() + dayOffset);
+        testDate.setHours(schedH, schedM, 0, 0);
+
+        let testDayCode = dayKeys[testDate.getDay()];
+
+        // Semak sama ada hari tersebut disenaraikan dalam jadual
+        if (allowedDays.includes(testDayCode)) {
+          let diff = testDate.getTime() - now.getTime();
+          
+          // Mesti masa di masa hadapan (diff > 0)
+          if (diff > 0 && diff < minDistance) {
+            minDistance = diff;
+            nearestSchedule = sched;
+            targetDateTime = testDate;
+            break; // Jumpa slot masa terdekat, keluar dari gelung hari
+          }
+        }
+      }
+    }
+
+    if (nearestSchedule && targetDateTime) {
+      let boxKey = 'box' + nearestSchedule.box;
+      let pillName = (inventory && inventory[boxKey] && inventory[boxKey].pill_name && inventory[boxKey].pill_name !== "Not Set")
+        ? inventory[boxKey].pill_name
+        : (nearestSchedule.pill_name || "Medicine");
+
+      const daysEnMap = { 'Sun': 'Sunday', 'Mon': 'Monday', 'Tue': 'Tuesday', 'Wed': 'Wednesday', 'Thu': 'Thursday', 'Fri': 'Friday', 'Sat': 'Saturday' };
+      let dayNameEn = daysEnMap[dayKeys[targetDateTime.getDay()]];
+
+      let formattedTime12 = convertTo12Hour(nearestSchedule.time);
+
+      document.getElementById('nextMedName').innerText = pillName;
+      document.getElementById('nextMedDetails').innerText = `Compartment: ${nearestSchedule.box} | ${dayNameEn} (${formattedTime12})`;
+      
+      startCountdown(targetDateTime);
+    } else {
+      clearInterval(countdownInterval);
+      document.getElementById('nextMedName').innerText = "No Schedule";
+      document.getElementById('nextMedDetails').innerText = "Compartment: - | Time: -";
+      document.getElementById('countdownTimer').innerText = "00D: 00H: 00M: 00S";
+    }
+  }
+
+  deviceRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+
+    const rawStatus = data.info?.status || "OFFLINE";
+    if (rawStatus === "UNCONFIGURED") {
+      window.location.href = `setup.html?id=${targetDevice}`;
+      return;
+    }
+
+    const isOnline = (rawStatus === 'ONLINE');
+    const statusElem = document.getElementById('deviceStatus');
+    statusElem.innerText = isOnline ? 'ONLINE' : 'OFFLINE';
+    statusElem.className = 'status-pill ' + (isOnline ? 'status-online' : 'status-offline');
+
+    document.getElementById('patientName').innerText = data.info?.patient_name || "not set";
+
+    if (data.status_box) {
+      updateBoxCard('visualBoxA', 'visualIconA', 'visualLidA', data.status_box.compA, data.status_box.lidA);
+      updateBoxCard('visualBoxB', 'visualIconB', 'visualLidB', data.status_box.compB, data.status_box.lidB);
+    }
+
+    if (data.inventory) {
+      document.getElementById('stockA').innerText = `${data.inventory.boxA?.current_pills || 0} Pills`;
+      document.getElementById('stockB').innerText = `${data.inventory.boxB?.current_pills || 0} Pills`;
+    }
+
+    if (data.schedules) {
+      updateUpcomingDose(data.schedules, data.inventory);
+    } else {
+      clearInterval(countdownInterval);
+      document.getElementById('nextMedName').innerText = "No Dose Scheduled";
+      document.getElementById('nextMedDetails').innerText = "Compartment: - | Time: -";
+      document.getElementById('countdownTimer').innerText = "00D: 00H: 00M: 00S";
+    }
+
+    // TRIGGER CHART AND COMPLIANCE UPDATE
+    updateChartAndCompliance(data.history || null);
+  });
+
+  function updateBoxCard(cardId, iconId, lidId, lockState, lidState) {
+    const card = document.getElementById(cardId);
+    const icon = document.getElementById(iconId);
+
+    if (lockState === 'UNLOCKED') {
+      card.className = 'comp-card is-unlocked';
+      icon.innerText = '🔓';
+    } else {
+      card.className = 'comp-card is-locked';
+      icon.innerText = '🔒';
+    }
+  }
+
+  function triggerForceUnlock() {
+    const selectedBox = document.getElementById('emergencyBoxSelect').value;
+    const reason = prompt("Enter unlock reason:");
+    if (reason && reason.trim() !== "") {
+      const finalReason = "Emergency: " + reason.trim(); 
+      deviceRef.child('commands/force_unlock').set({
+        box: selectedBox,
+        reason: finalReason,
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        trigger: true
+      }).then(() => alert("Command Sent!"));
+    }
+  }
+  </script>
+</body>
+</html>

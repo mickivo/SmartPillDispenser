@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartPill - Wi-Fi Setup</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      opacity: 1;
+      visibility: visible;
+      transition: all 0.4s ease;
+      padding: 20px;
+    }
+
+    .modal-overlay.hide {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      animation: modalSlideUp 0.3s ease-out;
+    }
+
+    @keyframes modalSlideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-icon {
+      font-size: 3.5rem;
+      margin-bottom: 12px;
+    }
+
+    .modal-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .status-badge.offline {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .status-badge.online {
+      background: #d1fae5;
+      color: #059669;
+    }
+
+    .steps-list {
+      text-align: left;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 16px 0;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: #334155;
+    }
+
+    .steps-list ol {
+      margin-left: 20px;
+      padding: 0;
+    }
+
+    .steps-list li {
+      margin-bottom: 8px;
+    }
+
+    .pulse-loader {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      background-color: #3b82f6;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="wifiModal" class="modal-overlay">
+    <div class="modal-card">
+      <div id="modalIcon" class="modal-icon">📶</div>
+      <h2 id="modalTitle" class="modal-title">Connect Device to Wi-Fi</h2>
+      
+      <div id="modalBadge" class="status-badge offline">
+        ⚠️ Device Offline
+      </div>
+
+      <p id="modalStatusText" style="font-size: 0.9rem; color: #64748b;">
+        SmartPill device is not connected to the internet. Please follow the simple steps below:
+      </p>
+
+      <div id="stepsContainer" class="steps-list">
+        <ol>
+          <li>Open the Wi-Fi settings on your phone.</li>
+          <li>Join the Wi-Fi hotspot network named <strong>SPD-BOX</strong>.</li>
+          <li>A Wi-Fi setup page will pop up on your phone. Select your home Wi-Fi & enter the password.</li>
+          <li>Press <strong>Save / Connect</strong> and wait for the device to connect.</li>
+        </ol>
+      </div>
+
+      <div style="margin-top: 15px; font-size: 0.85rem; color: #3b82f6; font-weight: 600; display: flex; align-items: center; justify-content: center;">
+        <span class="pulse-loader"></span>
+        <span id="listeningText">Waiting for device Wi-Fi connection...</span>
+      </div>
+    </div>
+  </div>
+
+  <header class="top-app-bar">
+    <div class="user-profile">
+      <div class="avatar">💊</div>
+      <div>
+        <h1>SmartPill Setup</h1>
+        <p class="device-id-text">ID: <span id="deviceIdDisplay">SPD-2026-001</span></p>
+      </div>
+    </div>
+    <span id="deviceStatus" class="status-pill status-offline">OFFLINE</span>
+  </header>
+
+  <main class="app-container">
+    <section class="card" style="text-align: center; padding: 40px 20px;">
+      <h2 style="color: var(--primary);">Device & Wi-Fi Status</h2>
+      <p style="margin-top: 10px; color: #64748b;">
+        This page automatically monitors your SmartPill device's internet connection.
+      </p>
+      <div style="margin-top: 25px;">
+        <button class="app-btn" onclick="checkStatusManual()">🔄 Check Status Again</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const targetDevice = DEVICE_ID;
+    document.getElementById('deviceIdDisplay').innerText = targetDevice;
+
+    const deviceRef = database.ref('devices/' + targetDevice);
+
+    // Status Wi-Fi dari Firebase
+    deviceRef.child('info/status').on('value', (snapshot) => {
+      const status = snapshot.val() || "OFFLINE";
+      const isOnline = (status === 'ONLINE');
+
+      // update header
+      const statusElem = document.getElementById('deviceStatus');
+      statusElem.innerText = isOnline ? 'ONLINE' : 'OFFLINE';
+      statusElem.className = 'status-pill ' + (isOnline ? 'status-online' : 'status-offline');
+
+      // Elemen popup
+      const wifiModal = document.getElementById('wifiModal');
+      const modalBadge = document.getElementById('modalBadge');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalIcon = document.getElementById('modalIcon');
+      const modalStatusText = document.getElementById('modalStatusText');
+      const stepsContainer = document.getElementById('stepsContainer');
+      const listeningText = document.getElementById('listeningText');
+
+      if (isOnline) {
+        modalIcon.innerText = "✅";
+        modalTitle.innerText = "Wi-Fi Connected Successfully!";
+        modalBadge.className = "status-badge online";
+        modalBadge.innerText = "ONLINE";
+        modalStatusText.innerText = "Your device is now ready to use. Redirecting to Dashboard...";
+        stepsContainer.style.display = "none";
+        listeningText.innerText = "Stable Connection";
+
+        setTimeout(() => {
+          wifiModal.classList.add('hide');
+          window.location.href = "index.html?id=" + targetDevice;
+        }, 1500);
+
+      } else {
+        wifiModal.classList.remove('hide');
+        modalIcon.innerText = "📶";
+        modalTitle.innerText = "Connect Device to Wi-Fi";
+        modalBadge.className = "status-badge offline";
+        modalBadge.innerText = "⚠️ Device Offline";
+        stepsContainer.style.display = "block";
+        listeningText.innerText = "Waiting for device Wi-Fi connection...";
+      }
+    });
+
+    function checkStatusManual() {
+      deviceRef.child('info/status').once('value').then((snapshot) => {
+        alert("Current Device Status: " + (snapshot.val() || "OFFLINE"));
+      });
+    }
+  </script>
+</body>
+</html>

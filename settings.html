@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartPill - Settings</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    /* Bekas Utama Terpusat */
+    main.app-container {
+      max-width: 650px !important;
+      margin: 0 auto !important;
+      padding: 24px 16px !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    /* Navigasi Tab Mendatar (Segmented Control) */
+    .segmented-control {
+      display: flex;
+      background: #e2e8f0;
+      padding: 4px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      gap: 4px;
+    }
+
+    .segment-btn {
+      flex: 1;
+      padding: 10px 12px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .segment-btn.active {
+      background: #ffffff;
+      color: #4f46e5;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    /* Kad Kandungan */
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .card-title-group h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 0;
+      color: #0f172a;
+    }
+
+    .card-desc {
+      font-size: 0.82rem;
+      color: #64748b;
+      margin-bottom: 20px;
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+
+    .app-input, .app-select {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      outline: none;
+      font-size: 0.88rem;
+      box-sizing: border-box;
+      background-color: #f8fafc;
+      transition: all 0.2s ease;
+      color: #0f172a;
+    }
+
+    .app-input:focus, .app-select:focus {
+      border-color: #4f46e5;
+      background-color: #ffffff;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    /* Switch Component */
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-top: 1px dashed #e2e8f0;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #cbd5e1; transition: .3s; border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+      background-color: white; transition: .3s; border-radius: 50%;
+    }
+
+    input:checked + .slider { background-color: #4f46e5; }
+    input:checked + .slider:before { transform: translateX(22px); }
+
+    /* Key-Value Info Row */
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 0.85rem;
+    }
+
+    .info-row:last-child { border-bottom: none; }
+    .info-row .label { color: #64748b; }
+    .info-row .val { font-weight: 600; color: #0f172a; }
+
+    /* Buttons */
+    .btn-action {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-primary { background: #4f46e5; color: white; }
+    .btn-primary:hover { background: #4338ca; }
+    
+    .btn-success { background: #10b981; color: white; }
+    .btn-success:hover { background: #059669; }
+
+    .btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    .btn-danger { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; }
+    .btn-danger:hover { background: #ffe4e6; }
+
+    details.guide-box summary {
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      color: #334155;
+    }
+    
+    .guide-list {
+      margin-top: 12px;
+      padding-left: 20px;
+      font-size: 0.83rem;
+      color: #64748b;
+      line-height: 1.7;
+    }
+
+    /* === PENYESUAIAN KHUSUS TAMPILAN HP (MOBILE RESPONSIVE) === */
+    @media (max-width: 480px) {
+      main.app-container {
+        padding: 12px 10px !important;
+      }
+
+      /* Memungkinkan tab navigasi di-scroll ke samping di layar HP */
+      .segmented-control {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Menyembunyikan scrollbar di Firefox */
+        justify-content: flex-start;
+      }
+
+      /* Menyembunyikan scrollbar di Chrome/Safari */
+      .segmented-control::-webkit-scrollbar {
+        display: none;
+      }
+
+      .segment-btn {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+        flex: 0 0 auto; /* Mencegah tombol mengerut di layar kecil */
+      }
+
+      .card {
+        padding: 16px;
+        border-radius: 12px;
+      }
+
+      .card-title-group h3 {
+        font-size: 1rem;
+      }
+
+      .card-desc {
+        font-size: 0.78rem;
+        margin-bottom: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top App Bar -->
+  <header class="top-app-bar">
+    <div class="user-profile">
+      <div class="avatar">💊</div>
+      <div>
+        <h1 id="patientName">Loading...</h1>
+        <p class="device-id-text">ID: <span id="deviceIdDisplay">Loading...</span></p>
+      </div>
+    </div>
+
+    <nav class="desktop-nav">
+      <a href="index.html">Dashboard</a>
+      <a href="schedule.html">Schedule</a>
+      <a href="history.html">History</a>
+      <a href="settings.html" class="active">Settings</a>
+    </nav>
+
+    <span id="deviceStatus" class="status-pill status-offline">OFFLINE</span>
+  </header>
+
+  <!-- Main Container -->
+  <main class="app-container">
+
+    <!-- Segmented Navigation Bar -->
+    <div class="segmented-control">
+      <button class="segment-btn active" onclick="switchTab('tab-profile', this)">👤 Profile</button>
+      <button class="segment-btn" onclick="switchTab('tab-alarm', this)">⏰ Alarm & Timer</button>
+      <button class="segment-btn" onclick="switchTab('tab-system', this)">⚙️ System & Alerts</button>
+    </div>
+
+    <!-- TAB 1: PROFILE -->
+    <div id="tab-profile" class="tab-content active">
+      <section class="card">
+        <div class="card-title-group">
+          <span>👤</span>
+          <h3>Patient & Caregiver Profile</h3>
+        </div>
+        <p class="card-desc">Manage patient medical details and primary caregiver contact.</p>
+        
+        <div class="form-group">
+          <label class="form-label">Patient Name</label>
+          <input type="text" id="inputPatientName" class="app-input" placeholder="e.g. Ahmad bin Abu">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Medical Condition</label>
+          <input type="text" id="inputCondition" class="app-input" placeholder="e.g. Hypertension">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Caregiver WhatsApp Number</label>
+          <input type="text" id="inputWhatsApp" class="app-input" placeholder="e.g. 60123456789">
+        </div>
+
+        <button class="btn-action btn-primary" onclick="saveProfile()" style="margin-top: 12px;">Save Profile Changes</button>
+      </section>
+    </div>
+
+    <!-- TAB 2: ALARM & TIMER -->
+    <div id="tab-alarm" class="tab-content">
+      <section class="card">
+        <div class="card-title-group">
+          <span>⏰</span>
+          <h3>Alarm & Timer Preferences</h3>
+        </div>
+        <p class="card-desc">Configure buzzer sound behavior and dispense timeout window.</p>
+
+        <div class="form-group">
+          <label class="form-label">Buzzer Sound Pattern</label>
+          <select id="selectBuzzerPattern" class="app-select" onchange="updateSoftwareConfig()">
+            <option value="INTERMITTENT">🔔 Intermittent Beeps (Beep-Beep-Beep)</option>
+            <option value="CONTINUOUS">📢 Continuous Alarm (Solid Tone)</option>
+            <option value="FAST_BEEP">⚡ Fast Pulse Beeps</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Dispense Timeout Duration</label>
+          <select id="selectTimeout" class="app-select" onchange="updateSoftwareConfig()">
+            <option value="60">1 Minute (60 seconds)</option>
+            <option value="120" selected>2 Minutes (120 seconds - Standard)</option>
+            <option value="180">3 Minutes (180 seconds)</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #0f172a;">Night Quiet Hours (10 PM - 7 AM)</div>
+            <div style="font-size: 0.75rem; color: #64748b;">Mute buzzer automatically during night time</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggleQuietHours" onchange="updateSoftwareConfig()">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </section>
+    </div>
+
+    <!-- TAB 3: SYSTEM & ALERTS -->
+    <div id="tab-system" class="tab-content">
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        
+        <section class="card">
+          <div class="card-title-group">
+            <span>🔔</span>
+            <h3>Alerts & Caregiver Notifications</h3>
+          </div>
+          <p class="card-desc">Configure escalation parameters and test notification channels.</p>
+
+          <div class="form-group">
+            <label class="form-label">WhatsApp Escalation Delay</label>
+            <select id="selectAlertDelay" class="app-select" onchange="updateSoftwareConfig()">
+              <option value="0" selected>Immediate (When dose is missed)</option>
+              <option value="15">15 Minutes after missed dose</option>
+              <option value="30">30 Minutes after missed dose</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-top: 14px;">
+            <button class="btn-action btn-success" onclick="testWhatsAppAlert()">📲 Test WhatsApp Caregiver Alert</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-title-group">
+            <span>📶</span>
+            <h3>Hardware Diagnostics & Tools</h3>
+          </div>
+          
+          <div class="info-row">
+            <span class="label">Firmware Version</span>
+            <span class="val">v2.1.0-ESP32</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Buzzer Hardware</span>
+            <span class="val">Active 5V Buzzer</span>
+          </div>
+
+          <div class="setting-row" style="margin-top: 6px; border-top: none;">
+            <div>
+              <div style="font-size: 0.85rem; font-weight: 600; color: #0f172a;">Active Buzzer Test</div>
+              <div style="font-size: 0.75rem; color: #64748b;">Trigger 1-second test beep on device</div>
+            </div>
+            <button class="btn-action btn-secondary" style="width: auto; padding: 6px 14px; font-size: 0.8rem;" onclick="testBuzzer()">Test Beep</button>
+          </div>
+
+          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9;">
+            <button class="btn-action btn-danger" onclick="rebootDevice()">🔄 Reboot Dispenser Device</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <details class="guide-box">
+            <summary>📖 View User Guide & Instructions</summary>
+            <ol class="guide-list">
+              <li><strong>Device Setup:</strong> Ensure Wi-Fi status shows ONLINE on dashboard.</li>
+              <li><strong>Patient Profile:</strong> Keep WhatsApp number updated to receive missed dose alerts.</li>
+              <li><strong>Schedule Gap:</strong> Maintain at least a 2-hour gap between doses.</li>
+              <li><strong>Touch Sensor:</strong> Tap 3 times to mute active alarm. Tap 6 times to reset Wi-Fi.</li>
+            </ol>
+          </details>
+        </section>
+
+      </div>
+    </div>
+
+    <div style="height: 60px;"></div>
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Home</span>
+    </a>
+    <a href="schedule.html" class="nav-item">
+      <span class="nav-icon">⏰</span>
+      <span class="nav-label">Schedule</span>
+    </a>
+    <a href="history.html" class="nav-item">
+      <span class="nav-icon">📜</span>
+      <span class="nav-label">History</span>
+    </a>
+    <a href="settings.html" class="nav-item active">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">Settings</span>
+    </a>
+  </nav>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetDevice = urlParams.get('id') || DEVICE_ID;
+    
+    document.getElementById('deviceIdDisplay').innerText = targetDevice;
+    const deviceRef = database.ref('devices/' + targetDevice);
+
+    // Penukaran Tab Mendatar
+    function switchTab(tabId, btnElement) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.segment-btn').forEach(btn => btn.classList.remove('active'));
+
+      document.getElementById(tabId).classList.add('active');
+      btnElement.classList.add('active');
+    }
+
+    // Firebase Data Listener
+    deviceRef.on('value', (snapshot) => {
+      const data = snapshot.val();
+      const rawStatus = (data && data.info && data.info.status) ? data.info.status : "UNCONFIGURED";
+      const isOnline = (rawStatus === 'ONLINE');
+      const statusElem = document.getElementById('deviceStatus');
+      
+      statusElem.innerText = isOnline ? 'ONLINE' : (rawStatus === 'UNCONFIGURED' ? 'UNCONFIGURED' : 'OFFLINE');
+      statusElem.className = 'status-pill ' + (isOnline ? 'status-online' : 'status-offline');
+
+      const patientNameHeader = document.getElementById('patientName');
+      if (patientNameHeader) {
+        patientNameHeader.innerText = (data && data.info && data.info.patient_name) ? data.info.patient_name : "not set";
+      }
+
+      if (document.activeElement.id !== "inputPatientName") {
+        document.getElementById('inputPatientName').value = (data && data.info && data.info.patient_name) ? data.info.patient_name : "";
+      }
+      if (document.activeElement.id !== "inputCondition") {
+        document.getElementById('inputCondition').value = (data && data.info && data.condition) ? data.info.condition : "";
+      }
+      if (document.activeElement.id !== "inputWhatsApp") {
+        document.getElementById('inputWhatsApp').value = (data && data.info && data.info.caregiver_phone) ? data.info.caregiver_phone : "";
+      }
+
+      if (data && data.config) {
+        if (data.config.buzzer_pattern) document.getElementById('selectBuzzerPattern').value = data.config.buzzer_pattern;
+        if (data.config.timeout) document.getElementById('selectTimeout').value = data.config.timeout;
+        if (data.config.quiet_hours !== undefined) document.getElementById('toggleQuietHours').checked = data.config.quiet_hours;
+        if (data.config.alert_delay !== undefined) document.getElementById('selectAlertDelay').value = data.config.alert_delay;
+      }
+    });
+
+    function saveProfile() {
+      const newName = document.getElementById('inputPatientName').value;
+      const newCondition = document.getElementById('inputCondition').value;
+      const newPhone = document.getElementById('inputWhatsApp').value;
+
+      deviceRef.child('info').update({
+        patient_name: newName,
+        condition: newCondition,
+        caregiver_phone: newPhone
+      }).then(() => {
+        alert("Profile saved successfully!");
+      }).catch((error) => {
+        alert("Error: " + error);
+      });
+    }
+
+    function updateSoftwareConfig() {
+      const pattern = document.getElementById('selectBuzzerPattern').value;
+      const tout = document.getElementById('selectTimeout').value;
+      const quiet = document.getElementById('toggleQuietHours').checked;
+      const delay = document.getElementById('selectAlertDelay').value;
+
+      deviceRef.child('config').update({
+        buzzer_pattern: pattern,
+        timeout: parseInt(tout),
+        quiet_hours: quiet,
+        alert_delay: parseInt(delay)
+      });
+    }
+
+    function testBuzzer() {
+      deviceRef.child('commands').update({ test_buzzer: true, timestamp: Date.now() })
+        .then(() => alert("Test beep command sent!"));
+    }
+
+    function rebootDevice() {
+      if (confirm("Are you sure you want to reboot the dispenser?")) {
+        deviceRef.child('commands').update({ reboot: true, timestamp: Date.now() })
+          .then(() => alert("Reboot command sent to device."));
+      }
+    }
+
+    function testWhatsAppAlert() {
+      const phone = document.getElementById('inputWhatsApp').value;
+      if (!phone) {
+        alert("Please enter Caregiver WhatsApp Number first.");
+        return;
+      }
+      const message = "TEST ALERT: SmartPill Dispenser test notification.";
+      const waLink = `https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`;
+      window.open(waLink, '_blank');
+    }
+  </script>
+</body>
+</html>
